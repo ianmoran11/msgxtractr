@@ -1,4 +1,4 @@
-name: Build Binaries
+name: R Package Check and Build
 
 on:
   push:
@@ -11,35 +11,49 @@ jobs:
     strategy:
       matrix:
         os: [macos-latest, windows-latest]
+        r-version: ['4.1.0']
+
     runs-on: ${{ matrix.os }}
 
     steps:
     - uses: actions/checkout@v3
 
-    - name: Set up Go
-      uses: actions/setup-go@v4
+    - name: Set up R
+      uses: r-lib/actions/setup-r@v2
       with:
-        go-version: '1.20'
+        r-version: ${{ matrix.r-version }}
 
-    - name: Display Go version and environment
+    - name: Install system dependencies
+      if: runner.os == 'macOS'
       run: |
-        go version
-        go env
+        brew install imagemagick@6
+        brew install libmagic
 
-    - name: Initialize Go module if not present
+    - name: Install R dependencies
       run: |
-        if [ ! -f go.mod ]; then
-          go mod init github.com/${{ github.repository }}
-        fi
+        install.packages(c("remotes", "rcmdcheck"))
+        remotes::install_deps(dependencies = TRUE)
+      shell: Rscript {0}
 
-    - name: Build
-      run: go build -v .
+    - name: Check
+      run: rcmdcheck::rcmdcheck(args = "--no-manual", error_on = "error")
+      shell: Rscript {0}
+
+    - name: Build Package
+      run: |
+        pkg_file <- pkgbuild::build(binary = TRUE, needs_compilation = TRUE)
+        print(paste("Built package:", pkg_file))
+      shell: Rscript {0}
 
     - name: Upload artifact
       uses: actions/upload-artifact@v3
       with:
-        name: binary-${{ runner.os }}
-        path: |
-          ./*
-          !.git
-          !.github
+        name: R-package-${{ runner.os }}
+        path: '*.tar.gz'
+
+    - name: Upload binary artifact (Windows)
+      if: runner.os == 'Windows'
+      uses: actions/upload-artifact@v3
+      with:
+        name: R-package-Windows-binary
+        path: '*.zip'

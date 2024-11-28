@@ -31,17 +31,34 @@ jobs:
 
     - name: Install R dependencies
       run: |
-        install.packages(c("remotes", "rcmdcheck"))
+        install.packages(c("remotes", "rcmdcheck", "devtools"))
         remotes::install_deps(dependencies = TRUE)
       shell: Rscript {0}
 
-    - name: Check
-      run: rcmdcheck::rcmdcheck(args = "--no-manual", error_on = "error")
+    - name: Check package structure
+      run: |
+        dir
+        if (file.exists("DESCRIPTION")) cat(readLines("DESCRIPTION"), sep = "\n")
+        devtools::check_man()
+        devtools::document()
       shell: Rscript {0}
+
+    - name: Check
+      env:
+        _R_CHECK_CRAN_INCOMING_: false
+      run: rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", check_dir = "check")
+      shell: Rscript {0}
+
+    - name: Show check results
+      if: failure()
+      run: |
+        cat check/00check.log
+        cat check/00install.out
+      shell: bash
 
     - name: Build Package
       run: |
-        pkg_file <- pkgbuild::build(binary = TRUE, needs_compilation = TRUE)
+        pkg_file <- devtools::build(binary = TRUE)
         print(paste("Built package:", pkg_file))
       shell: Rscript {0}
 

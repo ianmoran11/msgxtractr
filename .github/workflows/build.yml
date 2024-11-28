@@ -43,6 +43,17 @@ jobs:
         devtools::document()
       shell: Rscript {0}
 
+    - name: Remove ltmain.sh if exists
+      if: runner.os == 'Windows'
+      run: |
+        if (file.exists("ltmain.sh")) {
+          file.remove("ltmain.sh")
+          print("ltmain.sh removed")
+        } else {
+          print("ltmain.sh not found")
+        }
+      shell: Rscript {0}
+
     - name: Check
       env:
         _R_CHECK_CRAN_INCOMING_: false

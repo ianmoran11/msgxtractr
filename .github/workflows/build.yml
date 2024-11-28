@@ -27,10 +27,8 @@ jobs:
     - name: Set up Rtools
       if: runner.os == 'Windows'
       uses: r-lib/actions/setup-rtools@v2
-      with:
-        rtools-version: '42'
 
-    - name: Install system dependencies
+    - name: Install system dependencies (macOS)
       if: runner.os == 'macOS'
       run: |
         brew install imagemagick@6
@@ -44,7 +42,6 @@ jobs:
 
     - name: Check package structure
       run: |
-        dir
         if (file.exists("DESCRIPTION")) cat(readLines("DESCRIPTION"), sep = "\n")
         devtools::check_man()
         devtools::document()
@@ -71,28 +68,13 @@ jobs:
         }
       shell: Rscript {0}
 
-    - name: Build Package (macOS)
-      if: runner.os == 'macOS'
+    - name: Build Package
       run: |
-        pkg_file <- devtools::build(binary = FALSE)
-        print(paste("Built source package:", pkg_file))
+        pkg_file <- devtools::build(binary = (Sys.info()[['sysname']] == "Windows"))
+        print(paste("Built package:", pkg_file))
       shell: Rscript {0}
 
-    - name: Build Package (Windows)
-      if: runner.os == 'Windows'
-      shell: cmd
-      run: |
-        Rcmd INSTALL --build .
-
-    - name: Upload source package
+    - name: Upload package
       uses: actions/upload-artifact@v3
       with:
-        name: msgxtractr_${{ runner.os }}_source
-        path: '*.tar.gz'
-
-    - name: Upload binary package (Windows)
-      if: runner.os == 'Windows'
-      uses: actions/upload-artifact@v3
-      with:
-        name: msgxtractr_Windows_binary
-        path: '*.zip'
+        name: msgxtractr_

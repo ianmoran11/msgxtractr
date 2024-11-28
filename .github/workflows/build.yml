@@ -46,31 +46,45 @@ jobs:
     - name: Check
       env:
         _R_CHECK_CRAN_INCOMING_: false
-      run: rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", check_dir = "check")
+      run: |
+        check_results <- rcmdcheck::rcmdcheck(args = c("--no-manual", "--as-cran"), error_on = "warning", check_dir = "check")
+        if (length(check_results$errors) > 0 || length(check_results$warnings) > 0) {
+          stop("There were errors or warnings in the check")
+        }
       shell: Rscript {0}
 
     - name: Show check results
       if: failure()
       run: |
-        cat check/00check.log
-        cat check/00install.out
-      shell: bash
+        if (file.exists("check/00check.log")) {
+          cat("Contents of check/00check.log:\n")
+          cat(readLines("check/00check.log"), sep = "\n")
+        } else {
+          cat("check/00check.log does not exist\n")
+          cat("Contents of the current directory:\n")
+          print(list.files(recursive = TRUE))
+        }
+      shell: Rscript {0}
 
     - name: Build Package
       run: |
-        pkg_file <- devtools::build(binary = TRUE)
-        print(paste("Built package:", pkg_file))
+        pkg_file <- devtools::build(binary = FALSE)
+        print(paste("Built source package:", pkg_file))
+        if (Sys.info()['sysname'] == "Windows") {
+          bin_file <- devtools::build(binary = TRUE)
+          print(paste("Built binary package:", bin_file))
+        }
       shell: Rscript {0}
 
-    - name: Upload artifact
+    - name: Upload source package
       uses: actions/upload-artifact@v3
       with:
-        name: R-package-${{ runner.os }}
+        name: msgxtractr_${{ runner.os }}_source
         path: '*.tar.gz'
 
-    - name: Upload binary artifact (Windows)
+    - name: Upload binary package (Windows)
       if: runner.os == 'Windows'
       uses: actions/upload-artifact@v3
       with:
-        name: R-package-Windows-binary
+        name: msgxtractr_Windows_binary
         path: '*.zip'
